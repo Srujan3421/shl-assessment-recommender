@@ -255,7 +255,8 @@
 
       async function checkHealth() {
         const response = await fetch("/health");
-        status.textContent = response.ok ? "healthy" : "unavailable";
+        const data = await response.json();
+        status.textContent = response.ok && data.status === "ok" ? "healthy" : "unavailable";
       }
 
       form.addEventListener("submit", async (event) => {
@@ -272,11 +273,15 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ messages: history.filter((message) => message.role !== "system") }),
           });
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API error ${response.status}: ${errorText.slice(0, 180)}`);
+          }
           const data = await response.json();
           history.push({ role: "assistant", content: data.reply });
           renderResults(data.recommendations || []);
         } catch (error) {
-          history.push({ role: "assistant", content: "Request failed. Check that the API server is running." });
+          history.push({ role: "assistant", content: `Request failed. ${error.message}` });
         } finally {
           send.disabled = false;
           renderMessages();
